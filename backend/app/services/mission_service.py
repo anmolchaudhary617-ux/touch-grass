@@ -12,12 +12,10 @@ async def generate_mission(request: MissionRequest) -> MissionResponse:
 
     prompt = (
         "You are an AI that creates an outdoor adventure mission for a user.\n"
-        "Create a mission that encourages the user to put their phone away "
-        "and explore the real world.\n"
-        "The mission must be safe, require no special equipment, GPS, "
-        "or location-specific facts.\n"
-        "Use a public and appropriate environment and avoid illegal, "
-        "dangerous, restricted, or trespassing activities.\n"
+        "Create a mission that encourages the user to put their phone away and explore the real world.\n"
+        "The mission must be safe, require no special equipment, GPS, or location-specific facts.\n"
+        "Do NOT assume any specific environment (park, forest, pond, trail, campus, etc.); instead tell the user to observe and interact with whatever surroundings are actually around them.\n"
+        "Use a public and appropriate setting and avoid illegal, dangerous, restricted, or trespassing activities.\n"
         "Return ONLY a single valid JSON object with these fields: "
         "title, type, estimated_time, premise, objective, safety_brief, first_clue.\n"
         "The type field must match the requested adventure type.\n"

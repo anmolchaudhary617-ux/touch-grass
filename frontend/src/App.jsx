@@ -1,122 +1,108 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import './App.css';
+import './missionSetup.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [adventure, setAdventure] = useState('');
+  const [duration, setDuration] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [mission, setMission] = useState(null);
+
+  const adventureOptions = [
+    { value: 'investigate', label: 'Investigate' },
+    { value: 'observe', label: 'Observe' },
+    { value: 'discover', label: 'Discover' },
+  ];
+  const durationOptions = [
+    { value: '10-15', label: '10–15 min' },
+    { value: '20-30', label: '20–30 min' },
+    { value: '30-45', label: '30–45 min' },
+  ];
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/missions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adventure_type: adventure, duration }),
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Error ${response.status}: ${errText}`);
+      }
+      const data = await response.json();
+      setMission(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-container">
+      <header>
+        <h1>Touch Grass – Mission Setup</h1>
+      </header>
+      <section className="setup">
+        <div className="option-group">
+          <h2>Adventure Type</h2>
+          <div className="options">
+            {adventureOptions.map((opt) => (
+              <button
+                key={opt.value}
+                className={`option-btn ${adventure === opt.value ? 'active' : ''}`}
+                type="button"
+                onClick={() => setAdventure(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+
+        <div className="option-group">
+          <h2>Duration</h2>
+          <div className="options">
+            {durationOptions.map((opt) => (
+              <button
+                key={opt.value}
+                className={`option-btn ${duration === opt.value ? 'active' : ''}`}
+                type="button"
+                onClick={() => setDuration(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
+
         <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          className="create-btn"
+          onClick={handleSubmit}
+          disabled={!adventure || !duration || loading}
         >
-          Count is {count}
+          {loading ? 'Creating...' : 'Create Mission'}
         </button>
+        {error && <p className="error">Error: {error}</p>}
       </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {mission && (
+        <section className="preview">
+          <h2>Mission Preview</h2>
+          <h3>{mission.title}</h3>
+          <p><strong>Estimated Time:</strong> {mission.estimated_time}</p>
+          <p><strong>Premise:</strong> {mission.premise}</p>
+          <p><strong>Objective:</strong> {mission.objective}</p>
+          <p><strong>Safety Brief:</strong> {mission.safety_brief}</p>
+          <p><strong>First Clue:</strong> {mission.first_clue}</p>
+        </section>
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
