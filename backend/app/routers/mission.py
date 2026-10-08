@@ -1,8 +1,12 @@
 from fastapi import APIRouter, HTTPException
+
 from app.models.mission import MissionRequest, MissionResponse
-from app.services.mission_service import generate_mission
+from app.models.next_clue import NextClueRequest, NextClueResponse
+from app.services.mission_service import generate_mission, generate_next_clue
+
 
 router = APIRouter(prefix="/api", tags=["Missions"])
+
 
 @router.post("/missions", response_model=MissionResponse)
 async def create_mission(request: MissionRequest):
@@ -17,6 +21,17 @@ async def create_mission(request: MissionRequest):
         return mission
     except HTTPException:
         # Propagate HTTPExceptions from the service (e.g., Ollama failures or JSON errors)
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/missions/next-clue", response_model=NextClueResponse)
+async def create_next_clue(request: NextClueRequest):
+    """Generate the next adventure clue from the user's observation."""
+    try:
+        return await generate_next_clue(request)
+    except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
