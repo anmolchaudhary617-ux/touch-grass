@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './App.css';
 import './missionSetup.css';
+import AdventureMode from './AdventureMode';
 
 function App() {
   const [adventure, setAdventure] = useState('');
@@ -8,6 +9,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mission, setMission] = useState(null);
+  const [adventureStarted, setAdventureStarted] = useState(false);
 
   const adventureOptions = [
     { value: 'investigate', label: 'Investigate' },
@@ -94,12 +96,33 @@ function App() {
         <section className="preview">
           <h2>Mission Preview</h2>
           <h3>{mission.title}</h3>
+
           <p><strong>Estimated Time:</strong> {mission.estimated_time}</p>
           <p><strong>Premise:</strong> {mission.premise}</p>
           <p><strong>Objective:</strong> {mission.objective}</p>
           <p><strong>Safety Brief:</strong> {mission.safety_brief}</p>
           <p><strong>First Clue:</strong> {mission.first_clue}</p>
+
+          {!adventureStarted && (
+            <button
+              className="create-btn"
+              type="button"
+              onClick={() => setAdventureStarted(true)}
+            >
+              Start Adventure
+            </button>
+          )}
         </section>
+      )}
+
+      {adventureStarted && (
+        <AdventureMode
+          mission={mission}
+          onEnd={() => {
+            setAdventureStarted(false);
+            setMission(null);
+          }}
+        />
       )}
     </div>
   );
