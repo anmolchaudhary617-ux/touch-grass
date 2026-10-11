@@ -111,10 +111,44 @@ def content_tokens(text: str) -> set[str]:
     return {word for word in words if word not in _STOPWORDS and len(word) > 2}
 
 
+_INITIAL_CLUES: set[str] = {
+    # Legacy initial clues used across tests
+    "look for two adjacent features that meet or transition. observe their visible relationship from a safe position.",
+    "look for two adjacent features that meet or transition. observe their visible relationship from a safe position. if no clear transition is available, compare two nearby features.",
+    "look for a pattern already present in your surroundings. do not arrange or move anything. if no clear pattern is visible, compare two features instead.",
+    "find something that looks older than its surroundings.",
+}
+
+_INITIAL_PREFIXES: tuple[str, ...] = (
+    "10-15 minute scan from your current safe position",
+    "20-30 minute exploration of your safe surroundings",
+    "30-45 minute walk through your safe surroundings",
+    "10-15 minute scan from your immediate safe position",
+)
+
+
+def register_initial_clue(clue: str) -> None:
+    """Register an initial mission blueprint clue so it is treated as the starting point."""
+    if clue:
+        _INITIAL_CLUES.add(_normalize(clue))
+
+
+def is_initial_clue(clue: str) -> bool:
+    """Determine whether a clue is a mission starting clue (turn 1)."""
+    text = _normalize(clue)
+    if text in _INITIAL_CLUES:
+        return True
+    return any(prefix in text for prefix in _INITIAL_PREFIXES)
+
+
 def classify_clue_step(clue: str) -> ProgressionStep:
     """Infer which investigative action the current clue is asking for."""
 
     text = _normalize(clue)
+
+    # Any initial clue represents the starting prompt (notice phase) regardless of descriptive wording.
+    if is_initial_clue(text):
+        return "notice"
 
     if any(marker in text for marker in _REFLECT_MARKERS):
         return "reflect"

@@ -11,6 +11,7 @@ from app.services.clue_progression import (
     build_progression_block,
     fallback_clue,
     is_repetitive,
+    register_initial_clue,
     select_next_step,
 )
 from app.services.ollama import generate
@@ -27,10 +28,34 @@ MISSION_BLUEPRINTS = {
             "Compare two visible features. Identify one similarity "
             "and one difference using evidence you can directly observe."
         ),
+        "first_clues": {
+            "10-15": (
+                "For a quick 10-15 minute scan from your current safe position: "
+                "Find two similar, safely observable objects or features nearby, such as two trees, benches, lampposts, or planter boxes. "
+                "Compare their shape, height, or surface appearance, and identify one clear similarity and one visible difference. "
+                "If no matching pair is nearby, compare two visible sections of a wall, fence, or pavement instead. "
+                "Stay in your safe area and do not touch unknown objects or climb anything."
+            ),
+            "20-30": (
+                "Over a 20-30 minute exploration of your safe surroundings: "
+                "Find two similar objects or structures positioned slightly apart, such as two light poles, trees, benches, or architectural columns. "
+                "Compare their condition, alignment, or surface wear, noting one shared trait and one unmistakable contrast between them. "
+                "If suitable pairs are scarce along your path, compare two separate paving sections, windows, or building edges. "
+                "Keep to permitted walkways, do not cross roadways for clues, and do not touch unknown objects."
+            ),
+            "30-45": (
+                "During an unhurried 30-45 minute walk through your safe surroundings: "
+                "Scan for recurring pairs of features across your route, such as pairs of gates, benches, trees, or structural supports. "
+                "Compare how their placement, weathering, or surrounding ground differ between the two locations. "
+                "If paired features are hard to find, compare two distinct wall surfaces, path borders, or posted signs along your route. "
+                "Stay on safe, public footpaths, do not touch unknown objects, and pause or stop whenever you choose."
+            ),
+        },
         "first_clue": (
-            "Choose two features visible from your current safe position. "
-            "Compare their shape, appearance, orientation, or placement. "
-            "If no suitable pair stands out, choose any two visible features."
+            "Find two similar, safely observable objects or features nearby, such as two trees, benches, lampposts, or planter boxes. "
+            "Compare their shape, height, or surface appearance, and identify one clear similarity and one visible difference. "
+            "If no matching pair is nearby, compare two visible sections of a wall, fence, or pavement instead. "
+            "Stay in your safe area and do not touch unknown objects or climb anything."
         ),
     },
     "hidden_detail": {
@@ -43,10 +68,34 @@ MISSION_BLUEPRINTS = {
             "Notice one visible detail and explain how it relates to "
             "the larger scene. Use direct observations, not guesses."
         ),
+        "first_clues": {
+            "10-15": (
+                "For a quick 10-15 minute scan from your current safe position: "
+                "Choose one ordinary nearby object or surface, such as a bench, tree trunk, lamppost base, or paved section. "
+                "Examine it closely without touching to notice one easily overlooked visual detail, such as a texture change, subtle mark, edge variation, or seam. "
+                "If nothing stands out on that feature, examine a different nearby surface or wall section instead. "
+                "Stay in your safe area and do not touch unknown objects or step into restricted spaces."
+            ),
+            "20-30": (
+                "Over a 20-30 minute exploration of your safe surroundings: "
+                "Pick an everyday structure along your path, such as an exterior wall, railing, pillar, or ground fixture. "
+                "Examine its surface for an unexpected detail—such as weathered markings, fastener patterns, subtle color variations, or seam lines—and note how it fits into the surrounding structure. "
+                "If the first structure seems uniform, inspect a nearby curb, gate, or paved corner instead. "
+                "Remain in safe public areas, do not approach strangers or touch unknown objects, and pause whenever you wish."
+            ),
+            "30-45": (
+                "During an unhurried 30-45 minute walk through your safe surroundings: "
+                "As you walk, look for an understated focal point on a larger structure or landscape feature, such as an engraved stamp, stone variation, joint work, or bracket. "
+                "Examine how this small element relates to the rest of the object and whether it appears repeated elsewhere along your route. "
+                "If no distinctive marking appears, inspect where different building materials or paving stones meet. "
+                "Stay on safe, open paths, avoid private property, and do not touch unknown objects."
+            ),
+        },
         "first_clue": (
-            "Observe a scene from a safe position. Choose a detail you "
-            "can clearly see and consider how it relates to its surroundings. "
-            "If nothing stands out, compare two visible features."
+            "Choose one ordinary nearby object or surface, such as a bench, tree trunk, lamppost base, or paved section. "
+            "Examine it closely without touching to notice one easily overlooked visual detail, such as a texture change, subtle mark, edge variation, or seam. "
+            "If nothing stands out on that feature, examine a different nearby surface or wall section instead. "
+            "Stay in your safe area and do not touch unknown objects or step into restricted spaces."
         ),
     },
     "mismatch": {
@@ -59,10 +108,34 @@ MISSION_BLUEPRINTS = {
             "Find a visible difference between comparable features. "
             "Describe what differs without assuming why."
         ),
+        "first_clues": {
+            "10-15": (
+                "For a quick 10-15 minute scan from your current safe position: "
+                "Observe a visible group or cluster of similar features, such as a row of windows, fence posts, paving stones, or bollards. "
+                "Identify one specific element in the group whose shape, spacing, color, or condition visibly differs from the rest. "
+                "If no clear grouping is in view, choose any two comparable objects and identify one clear mismatch between them. "
+                "Stay in your safe area and do not touch unknown objects or enter roadway areas."
+            ),
+            "20-30": (
+                "Over a 20-30 minute exploration of your safe surroundings: "
+                "Survey an organized series of features along your walking route, such as a line of trees, lampposts, parking barriers, or wall panels. "
+                "Locate an individual member of that series that breaks uniformity in spacing, orientation, height, or surface condition. "
+                "If the series looks completely uniform, find two adjacent structural features and identify an unexpected difference between them. "
+                "Stay on safe walkways, never step into traffic, and do not touch unknown objects."
+            ),
+            "30-45": (
+                "During an unhurried 30-45 minute walk through your safe surroundings: "
+                "Trace a extended sequence of recurring objects across your surroundings, such as streetlamps, fence pickets, decorative tiles, or path borders. "
+                "Spot an outlier whose alignment, material wear, or shade contrasts with the overall rhythm of the sequence. "
+                "If no extended sequence is available, identify an isolated feature that looks distinctly out of place with nearby architecture or vegetation. "
+                "Remain in safe public spaces, do not touch unknown objects, and stop or pause whenever needed."
+            ),
+        },
         "first_clue": (
-            "Look at two comparable visible features. Compare their shape, "
-            "position, or appearance. If nothing seems unusual, simply "
-            "record a clear difference between them."
+            "Observe a visible group or cluster of similar features, such as a row of windows, fence posts, paving stones, or bollards. "
+            "Identify one specific element in the group whose shape, spacing, color, or condition visibly differs from the rest. "
+            "If no clear grouping is in view, choose any two comparable objects and identify one clear mismatch between them. "
+            "Stay in your safe area and do not touch unknown objects or enter roadway areas."
         ),
     },
     "pattern_break": {
@@ -76,10 +149,34 @@ MISSION_BLUEPRINTS = {
             "observable variation. If no clear pattern exists, compare "
             "two visible features instead."
         ),
+        "first_clues": {
+            "10-15": (
+                "For a quick 10-15 minute scan from your current safe position: "
+                "Notice a repeating visual pattern in your safe surroundings, such as repeated brick lines, tile joints, railings, or pavement slats. "
+                "Identify where that repetition is interrupted, irregular, or changes alignment. "
+                "If no repeated pattern is visible, observe any structured edge or seam and note where its line changes. "
+                "Stay in your safe area and do not touch unknown objects or step off safe paths."
+            ),
+            "20-30": (
+                "Over a 20-30 minute exploration of your safe surroundings: "
+                "Follow a repeating visual rhythm along your route, such as paving grids, window mullions, fence pickets, or sidewalk expansion joints. "
+                "Locate a point where the spacing interval widens, narrows, shifts angle, or contains a substituted material. "
+                "If a regular pattern is hard to spot, inspect a straight curb line or wall for a sudden gap or contour shift. "
+                "Remain on safe designated walkways, watch your footing, and do not touch unknown objects."
+            ),
+            "30-45": (
+                "During an unhurried 30-45 minute walk through your safe surroundings: "
+                "Observe larger architectural or landscape patterns across your walk, such as repeating facade bays, planted borders, or overhead canopy spans. "
+                "Find an area where the continuous pattern breaks, alters its cadence, or gives way to a contrasting arrangement. "
+                "If no broad pattern unfolds, pick two different patterned surfaces along your route and compare where each one changes. "
+                "Stay in safe open areas, do not touch unknown objects, and feel free to pause at any time."
+            ),
+        },
         "first_clue": (
-            "Look for a pattern already present in your surroundings. "
-            "Do not arrange or move anything. If no clear pattern is visible, "
-            "compare two features instead."
+            "Notice a repeating visual pattern in your safe surroundings, such as repeated brick lines, tile joints, railings, or pavement slats. "
+            "Identify where that repetition is interrupted, irregular, or changes alignment. "
+            "If no repeated pattern is visible, observe any structured edge or seam and note where its line changes. "
+            "Stay in your safe area and do not touch unknown objects or step off safe paths."
         ),
     },
     "boundary": {
@@ -92,10 +189,34 @@ MISSION_BLUEPRINTS = {
             "Examine a visible transition between adjacent features. "
             "Describe its shape or appearance without guessing its cause."
         ),
+        "first_clues": {
+            "10-15": (
+                "For a quick 10-15 minute scan from your current safe position: "
+                "Notice a visible transition between two adjacent surfaces or materials, such as grass meeting pavement, curb stone meeting asphalt, or light meeting shadow. "
+                "Observe the seam line and describe whether the boundary is sharp, uneven, or overlapping. "
+                "If no material transition is nearby, observe where a wall meets the ground or pavement. "
+                "Stay in your safe area, do not touch unknown objects, and do not cross roads."
+            ),
+            "20-30": (
+                "Over a 20-30 minute exploration of your safe surroundings: "
+                "Walk along an edge where two distinct zones or ground materials meet, such as garden bed and walkway, brick and concrete, or shaded corridor and open area. "
+                "Observe how the dividing line behaves over distance—does it remain crisp, waver, or gradually blur? "
+                "If long boundaries are unavailable, inspect where an exterior wall or fence base meets the sidewalk. "
+                "Keep to safe pedestrian routes, avoid stepping near traffic, and do not touch unknown objects."
+            ),
+            "30-45": (
+                "During an unhurried 30-45 minute walk through your safe surroundings: "
+                "Trace multiple transition zones between natural and built environments, such as tree lines meeting paving, stone retaining walls meeting soil, or covered walkways opening to open sky. "
+                "Observe how the texture, cleanliness, and wear change across these dividing lines. "
+                "If varied boundaries are limited, follow the perimeter edge of a courtyard, park lawn, or parking area from a safe path. "
+                "Stick to permitted public pathways, do not touch unknown objects, and pause whenever you need."
+            ),
+        },
         "first_clue": (
-            "Look for two adjacent features that meet or transition. "
-            "Observe their visible relationship from a safe position. "
-            "If no clear transition is available, compare two nearby features."
+            "Notice a visible transition between two adjacent surfaces or materials, such as grass meeting pavement, curb stone meeting asphalt, or light meeting shadow. "
+            "Observe the seam line and describe whether the boundary is sharp, uneven, or overlapping. "
+            "If no material transition is nearby, observe where a wall meets the ground or pavement. "
+            "Stay in your safe area, do not touch unknown objects, and do not cross roads."
         ),
     },
 }
@@ -108,10 +229,18 @@ ADVENTURE_TYPE_BLUEPRINTS: dict[str, list[str]] = {
 }
 
 DURATION_SCOPES: dict[str, str] = {
-    "10-15": "For a quick 10â€“15 minute scan from your immediate safe position:",
-    "20-30": "Over a 20â€“30 minute exploration of your safe surroundings:",
-    "30-45": "During an unhurried 30â€“45 minute walk through your safe surroundings:",
+    "10-15": "For a quick 10-15 minute scan from your immediate safe position:",
+    "20-30": "Over a 20-30 minute exploration of your safe surroundings:",
+    "30-45": "During an unhurried 30-45 minute walk through your safe surroundings:",
 }
+
+# Register all blueprint initial clues into clue_progression's initial registry
+for _bp in MISSION_BLUEPRINTS.values():
+    if "first_clues" in _bp:
+        for _clue in _bp["first_clues"].values():
+            register_initial_clue(_clue)
+    if "first_clue" in _bp:
+        register_initial_clue(_bp["first_clue"])
 
 
 async def generate_mission(request: MissionRequest) -> MissionResponse:
@@ -180,8 +309,12 @@ async def generate_mission(request: MissionRequest) -> MissionResponse:
         print(f"[MISSION] Using blueprint title. Reason: {exc}")
         title = blueprint["title"]
 
-    duration_prefix = DURATION_SCOPES.get(request.duration, "")
-    first_clue = f"{duration_prefix} {blueprint['first_clue']}".strip()
+    first_clues_map = blueprint.get("first_clues", {})
+    if request.duration in first_clues_map:
+        first_clue = first_clues_map[request.duration]
+    else:
+        duration_prefix = DURATION_SCOPES.get(request.duration, "")
+        first_clue = f"{duration_prefix} {blueprint['first_clue']}".strip()
 
     return MissionResponse(
         title=title,

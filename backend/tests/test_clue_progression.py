@@ -128,3 +128,64 @@ def test_empty_and_vague_observation_fallback_is_safe():
     vague_clue = fallback_clue("examine", observation="Just walked around.")
     assert "pause or stop" in vague_clue.lower()
     assert "safe" in vague_clue.lower()
+
+
+def test_initial_clues_for_all_five_concepts_classify_as_notice():
+    """Verify that initial clues for all concepts are treated as notice phase, not completed examine/compare steps."""
+    from app.services.clue_progression import classify_clue_step, is_initial_clue
+    from app.services.mission_service import MISSION_BLUEPRINTS
+
+    concepts = ["comparison", "hidden_detail", "mismatch", "pattern_break", "boundary"]
+    for concept in concepts:
+        bp = MISSION_BLUEPRINTS[concept]
+        for duration, clue in bp["first_clues"].items():
+            assert is_initial_clue(clue), f"{concept} {duration} should be recognized as an initial clue"
+            classified = classify_clue_step(clue)
+            assert classified == "notice", (
+                f"{concept} {duration} contains descriptive wording but must classify as 'notice' "
+                f"at the start of a mission, not '{classified}'"
+            )
+
+
+def test_initial_clue_progression_advances_properly_without_skipping_steps():
+    """Verify that responding to an initial clue with a simple notice advances to compare, and a comparison advances to examine."""
+    from app.services.clue_progression import select_next_step
+    from app.services.mission_service import MISSION_BLUEPRINTS
+
+    simple_obs = "I noticed an ordinary wooden bench near the pathway."
+    comparison_obs = (
+        "I compared two trees. The left tree is tall and straight, "
+        "while the right tree has a curved trunk and rougher bark."
+    )
+
+    concepts = ["comparison", "hidden_detail", "mismatch", "pattern_break", "boundary"]
+    for concept in concepts:
+        bp = MISSION_BLUEPRINTS[concept]
+        for duration, clue in bp["first_clues"].items():
+            # A simple observation must advance to compare, never jump directly to reflect
+            next_after_simple = select_next_step(clue, simple_obs)
+            assert next_after_simple == "compare", (
+                f"{concept} {duration}: expected 'compare' after simple notice, got '{next_after_simple}'"
+            )
+
+            # A comparison observation must advance to examine, never jump directly to reflect
+            next_after_comp = select_next_step(clue, comparison_obs)
+            assert next_after_comp == "examine", (
+                f"{concept} {duration}: expected 'examine' after comparison observation, got '{next_after_comp}'"
+            )
+
+
+def test_later_examine_clue_still_advances_to_reflect():
+    """Verify that an actual subsequent examine clue in later turns advances to reflect."""
+    from app.services.clue_progression import classify_clue_step, select_next_step
+
+    later_examine_clue = (
+        "From a safe position, look closely at the fifth pot and examine its texture "
+        "compared to surrounding features. You may pause or stop at any time."
+    )
+    obs = "The texture of the chipped area feels rougher than the glaze."
+
+    classified = classify_clue_step(later_examine_clue)
+    assert classified == "examine"
+    next_step = select_next_step(later_examine_clue, obs)
+    assert next_step == "reflect"

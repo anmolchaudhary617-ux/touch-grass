@@ -107,14 +107,14 @@ def test_mission_generation_duration_shapes_first_clue_pacing(monkeypatch):
     assert r1.status_code == 200
     d1 = r1.json()
     assert d1["estimated_time"] == "10-15"
-    assert "10â€“15 minute scan" in d1["first_clue"]
+    assert "10-15 minute scan" in d1["first_clue"]
 
     # Extended duration (30-45)
     r2 = client.post("/api/missions", json={"adventure_type": "observe", "duration": "30-45"})
     assert r2.status_code == 200
     d2 = r2.json()
     assert d2["estimated_time"] == "30-45"
-    assert "30â€“45 minute walk" in d2["first_clue"]
+    assert "30-45 minute walk" in d2["first_clue"]
 
 
 def test_mission_generation_alternates_concepts(monkeypatch):
@@ -441,3 +441,72 @@ def test_empty_or_vague_observation_handled_safely(monkeypatch):
     assert clue
     assert "pause or stop" in clue.lower()
     assert "safe" in clue.lower()
+
+
+def test_first_clue_contains_actionable_targets_and_fallbacks_for_all_concepts():
+    """Verify that every concept blueprint has concrete targets, observation tasks, and fallbacks."""
+    from app.services.mission_service import MISSION_BLUEPRINTS
+
+    expected_concepts = ["comparison", "hidden_detail", "mismatch", "pattern_break", "boundary"]
+    assert set(MISSION_BLUEPRINTS.keys()) == set(expected_concepts)
+
+    for concept_name in expected_concepts:
+        bp = MISSION_BLUEPRINTS[concept_name]
+        assert "first_clues" in bp
+        for duration in ["10-15", "20-30", "30-45"]:
+            clue = bp["first_clues"][duration]
+            # 1. Concrete target guidance (conditional, e.g. "such as")
+            assert "such as" in clue.lower()
+            # 2. Clear fallback condition ("if no" or "if the" or "if suitable" or "if paired")
+            assert "if " in clue.lower() and any(
+                term in clue.lower() for term in ["instead", "choose", "compare", "inspect", "identify", "observe"]
+            )
+            # 3. Safety reminder preserved
+            assert "safe" in clue.lower()
+            # 4. Actionable task phrasing (not just "choose two features")
+            assert "choose two features visible" not in clue.lower()
+
+
+def test_first_clue_location_independence():
+    """Verify that clues do not claim specific objects definitively exist nearby."""
+    from app.services.mission_service import MISSION_BLUEPRINTS
+
+    for concept, bp in MISSION_BLUEPRINTS.items():
+        for duration, clue in bp["first_clues"].items():
+            # Targets must be conditional examples, preceded by "such as"
+            assert "such as" in clue
+            # Must provide fallback alternative
+            assert "instead" in clue.lower() or "if " in clue.lower()
+            # Clues must never require touching unknown objects
+            assert "touch" in clue.lower() and ("not touch" in clue.lower() or "do not" in clue.lower() or "without touching" in clue.lower())
+
+
+def test_first_clue_duration_differentiation(monkeypatch):
+    """Verify that first clues scale tasks appropriately across duration brackets."""
+    async def fake_generate(prompt: str) -> str:
+        return json.dumps({"title": "Pacing Test Title"})
+
+    monkeypatch.setattr(
+        "app.services.mission_service.generate",
+        fake_generate,
+    )
+
+    from app.services.mission_service import MISSION_BLUEPRINTS
+
+    for adv_type, concepts in [
+        ("investigate", ["comparison", "mismatch"]),
+        ("observe", ["hidden_detail", "pattern_break"]),
+        ("discover", ["boundary", "pattern_break"]),
+    ]:
+        resp_10 = client.post("/api/missions", json={"adventure_type": adv_type, "duration": "10-15"}).json()
+        resp_20 = client.post("/api/missions", json={"adventure_type": adv_type, "duration": "20-30"}).json()
+        resp_30 = client.post("/api/missions", json={"adventure_type": adv_type, "duration": "30-45"}).json()
+
+        # Each duration has distinctive pacing language
+        assert "10-15 minute scan" in resp_10["first_clue"]
+        assert "20-30 minute exploration" in resp_20["first_clue"]
+        assert "30-45 minute walk" in resp_30["first_clue"]
+
+        # Ensure clue text differs substantially across durations
+        assert resp_10["first_clue"] != resp_20["first_clue"]
+        assert resp_20["first_clue"] != resp_30["first_clue"]
