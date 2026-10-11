@@ -422,6 +422,76 @@ def test_flexible_llm_json_key_handling(monkeypatch):
     assert response.json()["next_clue"] == "Notice whether any other plant in the row has different foliage."
 
 
+def test_llm_answer_key_and_sentence_key_handling(monkeypatch):
+    # Test 'answer' key
+    async def fake_generate_answer(prompt: str) -> str:
+        return json.dumps({
+            "answer": "Compare the spacing between the two lower branches."
+        })
+
+    monkeypatch.setattr(
+        "app.services.mission_service.generate",
+        fake_generate_answer,
+    )
+
+    response = client.post("/api/missions/next-clue", json=FLOWER_PAYLOAD)
+    assert response.status_code == 200
+    assert response.json()["next_clue"] == "Compare the spacing between the two lower branches."
+
+    # Test sentence as dictionary key
+    async def fake_generate_sentence_key(prompt: str) -> str:
+        return json.dumps({
+            "Inspect the bark closely and notice any color patterns.": ""
+        })
+
+    monkeypatch.setattr(
+        "app.services.mission_service.generate",
+        fake_generate_sentence_key,
+    )
+
+    response = client.post("/api/missions/next-clue", json=FLOWER_PAYLOAD)
+    assert response.status_code == 200
+    assert response.json()["next_clue"] == "Inspect the bark closely and notice any color patterns."
+
+
+def test_observation_count_prevents_premature_reflection(monkeypatch):
+    captured_prompts = []
+
+    async def fake_generate(prompt: str) -> str:
+        captured_prompts.append(prompt)
+        return json.dumps({
+            "next_clue": "Look closely at the bark texture and notice variations."
+        })
+
+    monkeypatch.setattr(
+        "app.services.mission_service.generate",
+        fake_generate,
+    )
+
+    # Observation count 3 with an examine current_clue
+    examine_payload = {
+        "title": "The Curious Tree",
+        "type": "observe",
+        "premise": "Explore a safe outdoor area.",
+        "objective": "Notice details about the tree.",
+        "current_clue": "From a safe position, look closely and examine the texture.",
+        "observation": "The bark looks rough and darker on one side.",
+        "observation_count": 3,
+    }
+
+    response = client.post("/api/missions/next-clue", json=examine_payload)
+    assert response.status_code == 200
+    # Must be capped at examine, NOT reflect
+    assert "Required next step: examine" in captured_prompts[0]
+    assert "Required next step: reflect" not in captured_prompts[0]
+
+    # When observation_count is 4+, reflection is permitted
+    examine_payload["observation_count"] = 4
+    response = client.post("/api/missions/next-clue", json=examine_payload)
+    assert response.status_code == 200
+    assert "Required next step: reflect" in captured_prompts[1]
+
+
 def test_empty_or_vague_observation_handled_safely(monkeypatch):
     async def fake_generate(prompt: str) -> str:
         return json.dumps({"next_clue": ""})

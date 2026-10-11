@@ -338,6 +338,14 @@ async def generate_next_clue(
     """Generate the next clue using the user's reported observation."""
 
     required_step = select_next_step(request.current_clue, request.observation)
+    # Ensure at least 3 observation rounds occur before reflection is allowed
+    if (
+        request.observation_count is not None
+        and request.observation_count < 4
+        and required_step == "reflect"
+    ):
+        required_step = "examine"
+
     progression_block = build_progression_block(
         request.current_clue,
         request.observation,
@@ -362,8 +370,9 @@ async def generate_next_clue(
         "- The user may pause or stop at any time.\n"
         "\n"
         "OUTPUT FORMAT:\n"
-        "Return only a JSON object with exactly one string field: "
-        "\"next_clue\". No Markdown or additional text.\n"
+        'Return only a JSON object with exactly one string field named "next_clue".\n'
+        'Example: {"next_clue": "Compare the texture of the bark with a nearby branch."}\n'
+        "Do not use other keys like 'answer' or put text outside the JSON.\n"
         "\n"
         f"Mission title: {request.title}\n"
         f"Mission type: {request.type}\n"
@@ -401,11 +410,50 @@ async def generate_next_clue(
         if not isinstance(data, dict):
             raise ValueError("The model response must be a JSON object.")
 
-        if "next_clue" not in data:
-            for alt_key in ("clue", "nextClue", "next_step", "response"):
-                if alt_key in data and isinstance(data[alt_key], str):
-                    data = {"next_clue": data[alt_key]}
+        extracted_clue: str | None = None
+
+        # 1. Direct or known alternative keys
+        for key in (
+            "next_clue",
+            "clue",
+            "nextClue",
+            "next_step",
+            "answer",
+            "observation",
+            "task",
+            "result",
+            "response",
+        ):
+            val = data.get(key)
+            if isinstance(val, str) and val.strip():
+                extracted_clue = val.strip()
+                break
+            elif isinstance(val, dict):
+                # Nested object case
+                for sub_key in ("next_clue", "clue", "answer", "text"):
+                    sub_val = val.get(sub_key)
+                    if isinstance(sub_val, str) and sub_val.strip():
+                        extracted_clue = sub_val.strip()
+                        break
+                if extracted_clue:
                     break
+
+        # 2. If not found in known keys, check any string values
+        if not extracted_clue:
+            for val in data.values():
+                if isinstance(val, str) and len(val.strip().split()) >= 3:
+                    extracted_clue = val.strip()
+                    break
+
+        # 3. Model used a sentence as dictionary key (e.g., {"Look closely at...": ""})
+        if not extracted_clue:
+            for key in data.keys():
+                if isinstance(key, str) and len(key.strip().split()) >= 3:
+                    extracted_clue = key.strip()
+                    break
+
+        if extracted_clue:
+            data = {"next_clue": extracted_clue}
 
     except (json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(

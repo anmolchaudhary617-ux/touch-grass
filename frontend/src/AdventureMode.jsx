@@ -1,12 +1,14 @@
+
 import { useState } from 'react';
 import './adventureMode.css';
 
 function AdventureMode({ mission, onEnd }) {
-const [screen, setScreen] = useState('briefing');
-const [observation, setObservation] = useState('');
-const [nextClue, setNextClue] = useState('');
-const [loading, setLoading] = useState(false);
-const [error, setError] = useState('');
+  const [screen, setScreen] = useState('briefing');
+  const [observation, setObservation] = useState('');
+  const [nextClue, setNextClue] = useState('');
+  const [observationCount, setObservationCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const submitObservation = async () => {
     if (!observation.trim()) {
@@ -32,6 +34,7 @@ const [error, setError] = useState('');
             objective: mission.objective,
             current_clue: nextClue || mission.first_clue,
             observation: observation.trim(),
+            observation_count: observationCount + 1,
           }),
         }
       );
@@ -44,6 +47,7 @@ const [error, setError] = useState('');
       const data = await response.json();
 
       setNextClue(data.next_clue);
+      setObservationCount((count) => count + 1);
       setObservation('');
       setScreen('next-clue');
     } catch (error) {
@@ -59,7 +63,6 @@ const [error, setError] = useState('');
 
   return (
     <section className="adventure-mode">
-
       {/* Safety briefing */}
       {screen === 'briefing' && (
         <div className="adventure-card">
@@ -174,6 +177,7 @@ const [error, setError] = useState('');
         </div>
       )}
 
+      {/* Next clue */}
       {screen === 'next-clue' && (
         <div className="adventure-card">
           <p className="adventure-label">NEXT CLUE</p>
@@ -192,6 +196,7 @@ const [error, setError] = useState('');
           </button>
         </div>
       )}
+
       {/* Break */}
       {screen === 'break' && (
         <div className="adventure-card">
@@ -202,9 +207,7 @@ const [error, setError] = useState('');
           <p>Choose how long you'd like to pause.</p>
 
           <button type="button">1 minute</button>
-
           <button type="button">3 minutes</button>
-
           <button type="button">5 minutes</button>
 
           <button
@@ -243,7 +246,6 @@ const [error, setError] = useState('');
           </button>
         </div>
       )}
-
     </section>
   );
 }

@@ -189,3 +189,29 @@ def test_later_examine_clue_still_advances_to_reflect():
     assert classified == "examine"
     next_step = select_next_step(later_examine_clue, obs)
     assert next_step == "reflect"
+
+
+def test_tree_spacing_observation_does_not_jump_to_reflect():
+    from app.services.clue_progression import select_next_step
+
+    initial_clue = (
+        "For a quick 10-15 minute scan from your current safe position: "
+        "Find two similar, safely observable objects or features nearby, "
+        "such as two trees. Compare their shape, height, or surface appearance."
+    )
+    first_observation = (
+        "Both trees have brown trunks and green leaves. One is taller "
+        "with a wider canopy, while the other is shorter."
+    )
+
+    first_step = select_next_step(initial_clue, first_observation)
+    assert first_step == "examine"
+
+    spacing_clue = (
+        "Observe the spacing between the two trees. "
+        "Do they appear close together or farther apart?"
+    )
+    spacing_observation = "The two trees appear farther apart."
+
+    second_step = select_next_step(spacing_clue, spacing_observation)
+    assert second_step != "reflect"

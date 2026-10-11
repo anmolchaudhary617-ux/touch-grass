@@ -1,3 +1,4 @@
+
 """Deterministic next-clue progression for outdoor observation missions.
 
 Small local models often restate the mission objective instead of advancing.
@@ -69,7 +70,7 @@ _COMPARE_MARKERS = (
 )
 
 _EXAMINE_CLUE_MARKERS = (
-    "inspect", "closer", "texture", "color", "colour", "spacing",
+    "inspect", "closer", "texture", "color", "colour",
     "orientation", "characteristic", "different visible", "examine",
 )
 
@@ -101,16 +102,6 @@ _STEP_SIGNALS: dict[ProgressionStep, tuple[str, ...]] = {
     "reflect": ("summar", "pause", "already", "stop"),
 }
 
-
-def _normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", (text or "").strip().lower())
-
-
-def content_tokens(text: str) -> set[str]:
-    words = re.findall(r"[a-z0-9]+", _normalize(text))
-    return {word for word in words if word not in _STOPWORDS and len(word) > 2}
-
-
 _INITIAL_CLUES: set[str] = {
     # Legacy initial clues used across tests
     "look for two adjacent features that meet or transition. observe their visible relationship from a safe position.",
@@ -125,6 +116,15 @@ _INITIAL_PREFIXES: tuple[str, ...] = (
     "30-45 minute walk through your safe surroundings",
     "10-15 minute scan from your immediate safe position",
 )
+
+
+def _normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip().lower())
+
+
+def content_tokens(text: str) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", _normalize(text))
+    return {word for word in words if word not in _STOPWORDS and len(word) > 2}
 
 
 def register_initial_clue(clue: str) -> None:
@@ -153,6 +153,18 @@ def classify_clue_step(clue: str) -> ProgressionStep:
     if any(marker in text for marker in _REFLECT_MARKERS):
         return "reflect"
 
+    # A clue focused on spacing asks for a comparison between positions,
+    # rather than a close examination. Classify it as compare so a simple
+    # spacing observation does not immediately trigger reflection.
+    spacing_comparison = (
+        "spacing between" in text
+        or "farther apart" in text
+        or "closer together" in text
+        or "how far apart" in text
+    )
+    if spacing_comparison:
+        return "compare"
+
     if re.search(r"\bexamine\b", text) or any(marker in text for marker in _EXAMINE_CLUE_MARKERS):
         if not re.search(r"\bcompare\s+(two|their|these)\b", text):
             return "examine"
@@ -178,12 +190,26 @@ def classify_clue_step(clue: str) -> ProgressionStep:
 
 
 def classify_observation_step(observation: str) -> ProgressionStep:
-    """Infer how far the user's report has already progressed."""
+    """Classify the action demonstrated by the user's observation."""
 
     text = _normalize(observation)
 
     if any(marker in text for marker in _REFLECT_MARKERS):
         return "reflect"
+
+    # A specific quality being compared is an examination, not just
+    # a general comparison. Check this before generic compare markers.
+    examine_patterns = (
+        r"\bexamined\b",
+        r"\binspected\b",
+        r"\blooked closely\b",
+        r"\bnoticed that .{0,80}\bcompared with\b",
+        r"\bcompared .{0,80}\bwith\b",
+        r"\b(texture|surface|color|colour|spacing|orientation)\b.{0,100}\b(rougher|smoother|different|compared|than)\b",
+    )
+
+    if any(re.search(pattern, text) for pattern in examine_patterns):
+        return "examine"
 
     if any(marker in text for marker in _COMPARE_MARKERS):
         return "compare"
@@ -191,8 +217,9 @@ def classify_observation_step(observation: str) -> ProgressionStep:
     return "notice"
 
 
+
 def select_next_step(current_clue: str, observation: str) -> ProgressionStep:
-    """Advance one step beyond whichever action is already complete."""
+    """Advance one step beyond the most advanced demonstrated action."""
 
     completed_index = max(
         STEPS.index(classify_clue_step(current_clue)),

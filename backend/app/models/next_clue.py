@@ -1,5 +1,8 @@
+
 from typing import Literal
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
+
 
 class NextClueRequest(BaseModel):
     title: str
@@ -8,6 +11,8 @@ class NextClueRequest(BaseModel):
     objective: str
     current_clue: str
     observation: str
+    observation_count: int | None = Field(default=None, ge=1)
+
 
 class NextClueResponse(BaseModel):
     next_clue: str
