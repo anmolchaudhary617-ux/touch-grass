@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -21,13 +22,9 @@ app.include_router(mission_router)
 
 @app.get("/")
 def root():
-    return {
-        "message": "Touch Grass API is running"
-    }
+    return {"message": "Touch Grass API is running"}
 
 
 @app.get("/api/health")
 def health():
-    return {
-        "status": "ok"
-    }
+    return {"status": "ok"}
